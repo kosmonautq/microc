@@ -1,0 +1,6 @@
+bin/
+obj/
+.vscode
+CLex.fs
+CPar.fs
+CPar.fsi
