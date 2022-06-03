@@ -358,6 +358,35 @@ and eval e locEnv gloEnv store : int * store =
             eval e2 locEnv gloEnv store1
     | Call (f, es) -> callfun f es locEnv gloEnv store
 
+    | PreRun (sign, acc) ->
+        match sign with
+        | "++" ->
+            let (loc,store1) = access acc locEnv gloEnv store
+            let res = getSto store1 loc
+            (res + 1, setSto store1 loc (res + 1))
+
+        | "--" -> 
+            let (loc,store1) = access acc locEnv gloEnv store
+            let res = getSto store1 loc
+            (res - 1, setSto store1 loc (res - 1))
+        | _ -> failwith ("err for PreRun")
+
+
+    | AftRun (sign, acc) ->
+        match sign with
+        | "++" ->
+            let (loc,store1) = access acc locEnv gloEnv store
+            let res = getSto store1 loc
+            (res, setSto store1 loc (res + 1))
+
+        | "--" -> 
+            let (loc,store1) = access acc locEnv gloEnv store
+            let res = getSto store1 loc
+            (res, setSto store1 loc (res - 1))
+        | _ -> failwith ("err for AftRun")
+
+
+
 and access acc locEnv gloEnv store : int * store =
     match acc with
     | AccVar x -> (lookup (fst locEnv) x, store)
