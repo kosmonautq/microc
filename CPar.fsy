@@ -17,7 +17,7 @@ let nl = CstI 10 //  \n 的 ASCII 码
 %token <int> CSTINT CSTBOOL  // <int> 是词元的语义值类型
 %token <string> CSTSTRING NAME
 
-%token CHAR ELSE IF INT NULL PRINT PRINTLN RETURN VOID WHILE
+%token CHAR ELSE IF INT NULL PRINT PRINTLN RETURN VOID WHILE FOR IN RANGE DO SWITCH CASE DEFAULT STRING PRINTS UNTIL BOOL MATCH WITH
 %token PLUS MINUS TIMES DIV MOD
 %token EQ NE GT LT GE LE
 %token NOT SEQOR SEQAND
@@ -138,12 +138,33 @@ StmtM:  /* No unbalanced if-else */
   | Block                               { $1                   }
   | IF LPAR Expr RPAR StmtM ELSE StmtM  { If($3, $5, $7)       }
   | WHILE LPAR Expr RPAR StmtM          { While($3, $5)        }
+  | FOR LPAR Expr SEMI Expr SEMI Expr RPAR StmtM { For($3,$5,$7,$9) }
+  | FOR Access IN RANGE LPAR Expr RPAR StmtM { ForRange1($2,$6,$8) }
+  | FOR Access IN RANGE LPAR Expr COMMA Expr RPAR StmtM { ForRange2($2,$6,$8,$10) }
+  | FOR Access IN RANGE LPAR Expr COMMA Expr COMMA Expr RPAR StmtM { ForRange3($2,$6,$8,$10,$12) }
+  | DO StmtM WHILE LPAR Expr RPAR       { DoWhile($2,$5)       }
+  | SWITCH LPAR Expr RPAR LBRACE StmtS RBRACE { Switch($3,$6)  }
+  | DO StmtM UNTIL LPAR Expr RPAR       { DoUntil($2,$5)       }
+  | MATCH Expr WITH StmtMatch           { Match($2,$4)         }
 ;
 
 StmtU:
     IF LPAR Expr RPAR StmtM ELSE StmtU  { If($3, $5, $7)       }
   | IF LPAR Expr RPAR Stmt              { If($3, $5, Block []) }
   | WHILE LPAR Expr RPAR StmtU          { While($3, $5)        }
+  | FOR LPAR Expr SEMI Expr SEMI Expr RPAR StmtU { For($3,$5,$7,$9) }
+;
+
+// switch里面只有case和defalut语句，其中嵌套了基本的stmt语句
+// 这里创建StmtS，只给Switch语法使用
+StmtS:
+    CASE Expr COLON StmtM               { [Case($2, $4)]         }
+  | DEFAULT COLON StmtM                 { [Default($3)]          }
+  | CASE Expr COLON StmtM StmtS         { Case($2, $4) :: $5  }
+;
+StmtMatch:
+    VERTICAL Expr ARROW StmtM           { [Pattern($2,$4)]     }
+  | VERTICAL Expr ARROW StmtM StmtMatch { Pattern($2,$4) :: $5 }
 ;
 
 Expr: 

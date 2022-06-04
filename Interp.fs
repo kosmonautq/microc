@@ -289,6 +289,115 @@ let rec exec stmt (locEnv: locEnv) (gloEnv: gloEnv) (store: store) : store =
 
     | Return _ -> failwith "return not implemented" // 解释器没有实现 return
 
+
+    | For (e1, e2, e3, body) ->
+        let (v, store1) = eval e1 locEnv gloEnv store
+        let rec loop store1 = 
+            let (v, store2) = eval e2 locEnv gloEnv store1
+            if v<>0 then
+                let store3 = exec body locEnv gloEnv store2
+                let (tmp, store4) = eval e3 locEnv gloEnv store3
+                loop store4
+            else store2
+        loop store1
+
+    | ForRange1 (e1, e2, body) -> 
+        let (untilValue,store) = eval e2 locEnv gloEnv store
+        let (loc, store1) = access e1 locEnv gloEnv store
+        let store2 = setSto store1 loc 0
+        let rec loop store2 = 
+            let num = getSto store2 loc
+            if num<untilValue then
+                let store3 = exec body locEnv gloEnv store2
+                let update = num+1
+                let store4 = setSto store3 loc update
+                loop store4
+            else store2
+        loop store2
+
+    | ForRange2 (e1,e2,e3,body) ->
+        let (startValue,store) = eval e2 locEnv gloEnv store
+        let (untilValue,store) = eval e3 locEnv gloEnv store
+        let (loc, store1) = access e1 locEnv gloEnv store
+        let store2 = setSto store1 loc startValue
+        let rec loop store2 = 
+            let num = getSto store2 loc
+            if num<untilValue then
+                let store3 = exec body locEnv gloEnv store2
+                let update = num+1
+                let store4 = setSto store3 loc update
+                loop store4
+            else store2
+        loop store2
+
+    | ForRange3 (e1,e2,e3,e4,body) ->
+        let (startValue,store) = eval e2 locEnv gloEnv store
+        let (untilValue,store) = eval e3 locEnv gloEnv store
+        let (step,store) = eval e4 locEnv gloEnv store
+        let (loc, store1) = access e1 locEnv gloEnv store
+        let store2 = setSto store1 loc startValue
+        let rec loop store2 = 
+            let num = getSto store2 loc
+            if num<untilValue then
+                let store3 = exec body locEnv gloEnv store2
+                let update = num+step
+                let store4 = setSto store3 loc update
+                loop store4
+            else store2
+        loop store2
+
+    | DoWhile (body,e1) ->
+        let store1 = exec body locEnv gloEnv store 
+        let rec loop store2 =
+            let (v, store3) = eval e1 locEnv gloEnv store2
+            if v <> 0 then
+                loop (exec body locEnv gloEnv store3)
+            else
+                store3 //退出循环返回 环境store2
+        loop(store1)
+    | Switch (e1,body) ->
+        let (v1,store1) = eval e1 locEnv gloEnv store
+        let rec loop list store1 = 
+            match list with
+            | [] -> store1
+            | Case(e2,body1) :: tail ->
+                let (v2,store2) = eval e2 locEnv gloEnv store1
+                if v1 = v2 then
+                    exec body1 locEnv gloEnv store2
+                else
+                    loop tail store2
+            | Default(body2) :: tail ->
+                let store2 = exec body2 locEnv gloEnv store1
+                loop tail store2
+            | _ -> failwith ("unknown switch stmt")
+                
+        loop body store1
+    | Case (e,body) -> exec body locEnv gloEnv store
+    | Default(body) -> exec body locEnv gloEnv store
+    | DoUntil (body,e1) ->
+        let store1 = exec body locEnv gloEnv store 
+        let rec loop store2 =
+            let (v, store3) = eval e1 locEnv gloEnv store2
+            if v = 0 then
+                loop (exec body locEnv gloEnv store3)
+            else
+                store3 //退出循环返回 环境store2
+        loop(store1)
+    | Match(e1,body1)->
+        let (v1,store1) = eval e1 locEnv gloEnv store
+        let rec loop list store1 =
+            match list with
+            | Pattern(e2,body2) :: tail ->
+                let (v2,store2) = eval e2 locEnv gloEnv store1
+                if v1 = v2 then
+                    exec body2 locEnv gloEnv store2
+                else
+                    loop tail store2
+            | [] -> store1
+            | _ -> failwith("error in Match_Pattern")
+        loop body1 store
+    | Pattern(e,body) -> exec body locEnv gloEnv store
+
 and stmtordec stmtordec locEnv gloEnv store =
     match stmtordec with
     | Stmt stmt -> (locEnv, exec stmt locEnv gloEnv store)
