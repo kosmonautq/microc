@@ -216,6 +216,79 @@ let rec cStmt stmt (varEnv : VarEnv) (funEnv : FunEnv) (C : instr list) : instr 
       RET (snd varEnv - 1) :: deadcode C
     | Return (Some e) -> 
       cExpr e varEnv funEnv (RET (snd varEnv) :: deadcode C)
+      
+    | For (e1,e2,e3,body) ->
+      let labbegin = newLabel()
+      let (jumptest, C1) = makeJump (cExpr e2 varEnv funEnv (IFNZRO labbegin :: C))
+      cExpr e1 varEnv funEnv (addINCSP -1 (addJump jumptest (Label labbegin :: cStmt body varEnv funEnv (cExpr e3 varEnv funEnv (addINCSP -1 C1)))))
+    | ForRange1(acc,e1,body) ->
+      let labbegin = newLabel()
+      let ass = Assign (acc, CstI 0)
+      let compare = Prim2("<",Access acc,e1)
+      let plus = Assign (acc, Prim2("+",Access acc,CstI 1)) 
+      let (jumptest,C1) = makeJump (cExpr compare varEnv funEnv (IFNZRO labbegin :: C))
+      cExpr ass varEnv funEnv (addINCSP -1(addJump jumptest (Label labbegin :: cStmt body varEnv funEnv (cExpr plus varEnv funEnv (addINCSP -1 C1)))))
+    | ForRange2(acc,e1,e2,body) ->
+      let labbegin = newLabel()
+      let ass = Assign (acc, e1)
+      let compare = Prim2("<",Access acc,e2)
+      let plus = Assign (acc, Prim2("+",Access acc,CstI 1)) 
+      let (jumptest,C1) = makeJump (cExpr compare varEnv funEnv (IFNZRO labbegin :: C))
+      cExpr ass varEnv funEnv (addINCSP -1(addJump jumptest (Label labbegin :: cStmt body varEnv funEnv (cExpr plus varEnv funEnv (addINCSP -1 C1)))))
+    | ForRange3(acc,e1,e2,e3,body) ->
+      let labbegin = newLabel()
+      let ass = Assign (acc, e1)
+      let compare = Prim2("<",Access acc,e2)
+      let plus = Assign (acc, Prim2("+",Access acc,e3)) 
+      let (jumptest,C1) = makeJump (cExpr compare varEnv funEnv (IFNZRO labbegin :: C))
+      cExpr ass varEnv funEnv (addINCSP -1(addJump jumptest (Label labbegin :: cStmt body varEnv funEnv (cExpr plus varEnv funEnv (addINCSP -1 C1)))))
+    | DoWhile(body,e1) ->
+      let labbegin = newLabel()
+      let (jumptest, C1) = 
+           makeJump (cExpr e1 varEnv funEnv (IFNZRO labbegin :: C))
+      cStmt body varEnv funEnv (addJump jumptest (Label labbegin :: cStmt body varEnv funEnv C1))
+    | DoUntil(body,e1) ->
+      let labbegin = newLabel()
+      let (jumptest, C1) = 
+           makeJump (cExpr e1 varEnv funEnv (IFZERO labbegin :: C))
+      cStmt body varEnv funEnv (addJump jumptest (Label labbegin :: cStmt body varEnv funEnv C1))
+    | Switch(e1,body)   ->
+        let (labend, C1) = addLabel C
+        let rec loop c  = 
+            match c with
+            | Case(e2,body) :: tr ->
+                let (labnextbody,labnext,C2) = loop tr
+                let (label, C3) = addLabel(cStmt body varEnv funEnv (addGOTO labnextbody C2))
+                let (label2, C4) = addLabel( cExpr (Prim2 ("==",e1,e2)) varEnv funEnv (IFZERO labnext :: C3))
+                (label,label2,C4)
+            | Default( body ) :: tr -> 
+                let (labnextbody,labnext,C2) = loop tr
+                let (label, C3) = addLabel(cStmt body varEnv funEnv (addGOTO labnextbody C2))
+                let (label2, C4) = addLabel(cExpr (Prim2 ("==",e1,e1)) varEnv funEnv (IFZERO labnext :: C3))
+                (label,label2,C4)
+            | [] -> (labend, labend,C1)
+            | _ -> failwith("Switch err")
+        let (label,label2,C2) = loop body
+        C2
+    | Case(e,body) -> 
+      C
+    | Default(body) ->
+      C
+    | Match(e1,body) ->
+        let (labend, C1) = addLabel C
+        let rec loop c  = 
+            match c with
+            | Pattern(e2,body) :: tr ->
+                let (labnextbody,labnext,C2) = loop tr
+                let (label, C3) = addLabel(cStmt body varEnv funEnv (addGOTO labend C2))
+                let (label2, C4) = addLabel( cExpr (Prim2 ("==",e1,e2)) varEnv funEnv (IFZERO labnext :: C3))
+                (label,label2,C4)
+            | [] -> (labend, labend,C1)
+            | _ -> failwith("Switch err")
+        let (label,label2,C2) = loop body
+        C2
+    | Pattern(e,bdoy) ->
+      C
 
 and bStmtordec stmtOrDec varEnv : bstmtordec * VarEnv =
     match stmtOrDec with 
