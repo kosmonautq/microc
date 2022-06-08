@@ -494,6 +494,38 @@ and eval e locEnv gloEnv store : int * store =
             (res, setSto store1 loc (res - 1))
         | _ -> failwith ("err for AftRun")
 
+    | Prim3(e1,e2,e3) ->
+        let (v1,store1) = eval e1 locEnv gloEnv store
+        let (v2,store2) = eval e2 locEnv gloEnv store1
+        let (v3,store3) = eval e3 locEnv gloEnv store2
+        if v1<> 0 then
+            (v2,store2)
+        else
+            (v3,store3)
+
+    | SelfOperation(str,acc,e1) ->
+        let (ass, store1) = access acc locEnv gloEnv store
+        let value = getSto store1 ass
+        let (exprValue,store2) = eval e1 locEnv gloEnv store1
+        match str with
+        | "+" ->
+            let res = value+exprValue
+            (res,setSto store2 ass res)
+        | "-" ->
+            let res = value-exprValue
+            (res,setSto store2 ass res)
+        | "*" ->
+            let res = value*exprValue
+            (res,setSto store2 ass res)
+        | "/" ->
+            let res = value/exprValue
+            (res,setSto store2 ass res)
+        | "%" ->
+            let res = value%exprValue
+            (res,setSto store2 ass res)
+        | _ -> failwith("unknow str in SelfOperation")
+
+
 
 
 and access acc locEnv gloEnv store : int * store =
@@ -504,6 +536,9 @@ and access acc locEnv gloEnv store : int * store =
         let (a, store1) = access acc locEnv gloEnv store
         let aval = getSto store1 a
         let (i, store2) = eval idx locEnv gloEnv store1
+        let len = getSto store1 (a-1)
+        if i>=len then failwith("index out of array size")
+        if i<0 then failwith("index out of array size")
         (aval + i, store2)
 
 and evals es locEnv gloEnv store : int list * store =

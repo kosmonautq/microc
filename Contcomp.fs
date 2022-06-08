@@ -216,7 +216,7 @@ let rec cStmt stmt (varEnv : VarEnv) (funEnv : FunEnv) (C : instr list) : instr 
       RET (snd varEnv - 1) :: deadcode C
     | Return (Some e) -> 
       cExpr e varEnv funEnv (RET (snd varEnv) :: deadcode C)
-      
+
     | For (e1,e2,e3,body) ->
       let labbegin = newLabel()
       let (jumptest, C1) = makeJump (cExpr e2 varEnv funEnv (IFNZRO labbegin :: C))
@@ -373,6 +373,49 @@ and cExpr (e : expr) (varEnv : VarEnv) (funEnv : FunEnv) (C : instr list) : inst
            (IFNZRO labtrue 
              :: cExpr e2 varEnv funEnv (addJump jumpend C2))
     | Call(f, es) -> callfun f es varEnv funEnv C
+    | PreRun  (sign, acc) ->
+        match sign with
+        | "++" ->
+         cExpr (Assign(acc, Prim2("+", Access acc, CstI 1))) varEnv funEnv C
+
+        | "--" -> 
+         cExpr (Assign(acc, Prim2("-", Access acc, CstI 1))) varEnv funEnv C
+        | _ -> failwith ("err for PreRun")
+
+    | AftRun (sign, acc) ->
+        match sign with
+        | "++" ->
+          cExpr (Access acc) varEnv funEnv (  // 复制一份原数据
+            cExpr (Assign(acc, Prim2("+", Access acc, CstI 1))) varEnv funEnv (addINCSP -1 C))  // 删除 STI 保存在栈顶的值
+
+        | "--" -> 
+          cExpr (Access acc) varEnv funEnv (
+            cExpr (Assign(acc, Prim2("-", Access acc, CstI 1))) varEnv funEnv (addINCSP -1 C))
+        | _ -> failwith ("err for AftRun")
+    | Prim3(e1,e2,e3) ->
+      let (jumpend, C1) = makeJump C
+      let (labelse, C2) = addLabel (cExpr e3 varEnv funEnv C1)
+      cExpr e1 varEnv funEnv (IFZERO labelse 
+       :: cExpr e2 varEnv funEnv (addJump jumpend C2))
+    | SelfOperation(str,acc,e1)->
+      match str with
+      | "+" -> 
+        let ass = Assign (acc,Prim2("+",Access acc,e1))
+        cExpr ass varEnv funEnv C
+      | "-" -> 
+        let ass = Assign (acc,Prim2("-",Access acc,e1))
+        cExpr ass varEnv funEnv C
+      | "*" -> 
+        let ass = Assign (acc,Prim2("*",Access acc,e1))
+        cExpr ass varEnv funEnv C
+      | "/" -> 
+        let ass = Assign (acc,Prim2("/",Access acc,e1))
+        cExpr ass varEnv funEnv C
+      | "%" -> 
+        let ass = Assign (acc,Prim2("%",Access acc,e1))
+        cExpr ass varEnv funEnv C
+      | _ -> failwith("unknow str in SelfOperation ")
+    | _ -> failwith "unknown "
 
 (* Generate code to access variable, dereference pointer or index array: *)
 
