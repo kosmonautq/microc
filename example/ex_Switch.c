@@ -1,6 +1,6 @@
 void main(){
     int i;
-    i = 1;
+    i = 2;
     switch (i)
     {
     case 0:print 0;

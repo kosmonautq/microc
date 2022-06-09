@@ -258,12 +258,12 @@ let rec cStmt stmt (varEnv : VarEnv) (funEnv : FunEnv) (C : instr list) : instr 
             match c with
             | Case(e2,body) :: tr ->
                 let (labnextbody,labnext,C2) = loop tr
-                let (label, C3) = addLabel(cStmt body varEnv funEnv (addGOTO labnextbody C2))
+                let (label, C3) = addLabel(cStmt body varEnv funEnv (addGOTO labend C2))
                 let (label2, C4) = addLabel( cExpr (Prim2 ("==",e1,e2)) varEnv funEnv (IFZERO labnext :: C3))
                 (label,label2,C4)
             | Default( body ) :: tr -> 
                 let (labnextbody,labnext,C2) = loop tr
-                let (label, C3) = addLabel(cStmt body varEnv funEnv (addGOTO labnextbody C2))
+                let (label, C3) = addLabel(cStmt body varEnv funEnv (addGOTO labend C2))
                 let (label2, C4) = addLabel(cExpr (Prim2 ("==",e1,e1)) varEnv funEnv (IFZERO labnext :: C3))
                 (label,label2,C4)
             | [] -> (labend, labend,C1)

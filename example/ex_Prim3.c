@@ -1,10 +1,10 @@
 void main(){
     int i;
     int res;
-    res = 10;
+    res = 5;
     i = res>20?res:0;
     print i;
-    res = 30;
+    res = 40;
     i = res>20?res:0;
     print i;
 }
